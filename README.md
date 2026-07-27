@@ -3,7 +3,18 @@
 > 雪球结构期权定价 · Greeks 风险分解 · 对冲回测 · 压力测试 一体化系统
 > 单文件 Vanilla JS · 双击即可运行
 
-面向券商衍生品业务部面试演示的雪球结构自动定价与风控系统。基于纯 Vanilla JS + Vite 构建，最终产物为单个 `dist/index.html`（< 450KB），可在 `file://` 协议下零外部依赖运行（字体走 CDN）。
+![Vanilla JS](https://img.shields.io/badge/Vanilla%20JS-f7df1e?style=flat-square&logo=javascript&logoColor=black)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white)
+![Size](https://img.shields.io/badge/bundle-%3C%20450KB-success?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)
+
+## 项目状态
+
+**已完成 · 可演示使用。面向券商衍生品业务部面试演示的雪球结构自动定价与风控系统。基于纯 Vanilla JS + Vite 构建，最终产物为单个 `dist/index.html`（< 450KB），可在 `file://` 协议下零外部依赖运行（字体走 CDN）。
+
+## 快速预览
+
+👉 **在线体验：[https://xuhan242.github.io/snowball](https://xuhan242.github.io/snowball)
 
 ## 核心能力
 
@@ -69,7 +80,19 @@ npm run test:unit    # 单元测试 (pure Node.js)
 npm run test:perf    # 4 项性能基准 (pricing/greeks/surface/backtest)
 ```
 
-## 目录结构
+## 仓库结构
+
+> 💡 **当前仓库**为构建产物简化版，仅包含部署所需的核心文件。完整开发目录见下方「完整项目结构」。
+
+```
+snowball/
+├── index.html          # 主页（单文件产物
+├── README.md         # 项目说明
+└── dist/             # 构建产物（GitHub Pages 部署目录
+    └── index.html
+```
+
+## 完整项目结构
 
 ```
 snowball-v4/
@@ -191,3 +214,7 @@ MC 路径数下限 `nPaths ≥ 8192`（默认 8192，可选 16384 / 32768）。
 - **Greeks 双口径**：Delta/Gamma 显示为 1% 标的变动影响金额，Vega 为 1pp 波动率变动金额，Theta 为每日变动金额，Rho/RhoQ 为 1bp 变动金额
 - **MC 路径数下限**：所有定价与风险计算 `nPaths ≥ 8192`
 - **Vega 归因移除**：归因组件简化为 Gamma + Theta + 交易成本 + 离散损耗（30 日滚动 RV 做 Vega 归因是概念错误）
+
+## License
+
+MIT License — 可自由使用、修改、分发，保留版权声明即可。
