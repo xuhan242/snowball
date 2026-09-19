@@ -1,220 +1,65 @@
-# Snowball Demo
+# Snowball 雪球结构定价台 v7
 
-> 雪球结构期权定价 · Greeks 风险分解 · 对冲回测 · 压力测试 一体化系统
-> 单文件 Vanilla JS · 双击即可运行
+> 雪球结构期权定价 · Greeks 风险分解 · 账本口径对冲回测 · 压力测试 一体化工具
+> 单文件 Vanilla JS · 零外部依赖 · 双击即可运行
 
 ![Vanilla JS](https://img.shields.io/badge/Vanilla%20JS-f7df1e?style=flat-square&logo=javascript&logoColor=black)
 ![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white)
-![Size](https://img.shields.io/badge/bundle-%3C%20450KB-success?style=flat-square)
+![Size](https://img.shields.io/badge/bundle-415KB%20%3C%20450KB-success?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-44%20passing-success?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)
 
-## 项目状态
+## 在线体验
 
-**已完成 · 可演示使用。面向券商衍生品业务部面试演示的雪球结构自动定价与风控系统。基于纯 Vanilla JS + Vite 构建，最终产物为单个 `dist/index.html`（< 450KB），可在 `file://` 协议下零外部依赖运行（字体走 CDN）。
+👉 **https://xuhan242.github.io/snowball/**
 
-## 快速预览
+整个应用打包为单个 `index.html`（415KB，无 CDN / 无网络字体 / 无后端），也可以下载仓库根目录的 `index.html` 双击直接运行（`file://` 协议自动降级主线程计算）。
 
-👉 **在线体验：[https://xuhan242.github.io/snowball](https://xuhan242.github.io/snowball)
+## 功能（三 Tab，27 项）
 
-## 核心能力
+- **定价分析**：Monte Carlo 定价（PV / 四概率 / 标准误 / 95%CI）、6 维 Greeks 卡片（Delta/Gamma/Vega/Theta/Rho/RhoQ，1% 标准化金额 + 卖方视角文案）、Greeks 场景计算器、Greeks 二维曲面热力图、逐观察日敲出概率、时间维度概率演变、票息累积、路径密度热图、PV 密度分布（KDE + VaR/ES）、CEV 局部波动率曲线、反推票息（二分 + CRN）。
+- **对冲回测（账本口径）**：五频率对比、成本敏感度扫描（0–50bps + 盈亏平衡）、滚动窗口逐年回测、账本累计盈亏（负债腿逐日盯市 + 对冲腿 + 成本）、绩效指标（Sharpe/Sortino/Calmar + Bootstrap 95% CI）、归因四项分解（Γ/Θ/成本/未归因项 ε，恒等式精确闭合）、IV vs RV、滚动 RV 20/60、标的路径 + Delta 持仓双轴。
+- **压力测试**：波动率冲击 7 档、价格跳跃 7 档、历史危机 3 情景（2015 股灾 / 2020 新冠 / 2024 量化风暴，实际波动率运行时实算）、5×5 组合矩阵热图、最劣情景汇总。
 
-**定价分析 Tab** — Monte Carlo 定价、6 维 Greeks 卡片（Delta/Gamma/Vega/Theta/Rho/RhoQ）、Greeks 场景计算器、Greeks 二维曲面热力图、远期 Greeks、敲出概率分布、时间维度概率演变、票息累积、路径密度聚类、PV 概率密度分布、CEV 局部波动率曲线、Brent 反推票息率。
+## 数值可信：三层 golden 基准逐位回归
 
-**对冲回测 Tab** — 5 种对冲频率对比（日内 4 次 / 日内 2 次 / 日 1 次 / 周 1 次 / 月 1 次）、成本敏感性扫描（7 档 bps）、滚动窗口回测、累计盈亏曲线、标的路径与 Delta 持仓、盈亏归因分解（Gamma + Theta + 成本 + 残差）、IV vs RV 对比、Bootstrap 置信区间。
+| 基线 | 覆盖 | 断言 |
+|---|---|---|
+| `tests/golden.json`（v5 提取，只读） | Sobol 指纹、CEV/GBM 定价、Greeks、反推票息、曲面、查表 552 格、压测、危机 | 逐位一致 |
+| `tests/golden-v7-scaled.json` | 回测腿级键（单位口径修正后重立） | 逐位一致 |
+| `tests/golden-v7-book.json` | 查表 PV 552 格 + 账本回测三频率 | 逐位一致 |
 
-**压力测试 Tab** — 波动率冲击（±5/±10/±20pp）、价格跳跃（±5/±10/±20%）、历史危机情景（2015 股灾 / 2020 新冠 / 2024 量化风暴）、5×5 组合情景矩阵。
+`node test/run.mjs` → **44 断言全绿**为交付门槛；对冲回测的账本口径（负债腿盯市入账、归因恒等式）推导见 `snowball-v7/docs/book-accounting.md`。
 
-**全局功能** — 深色 / 浅色 / 跟随系统三态主题、骨架屏、错误重试、参数折叠、6 套指数预设（中证500/沪深300/中证1000/上证50/创业板指/科创50）。
+## 技术要点
 
-## 技术架构
+- **Sobol 低差异序列**（756 维方向数表、Gray 码增量、Acklam 逆正态）+ **CRN 有限差分 Greeks**（扰动重定价共用随机数，消除 MC 噪声）。
+- 路径模型：GBM / CEV 局部波动率（β=0）/ Brownian Bridge 方差缩减 / Merton 跳跃（确定性流，可复现）。
+- **Worker 池三级降级**：按路径分片 Transferable 传输 → 合并单任务 → 主线程逐格（MessageChannel 让步，后台标签不被定时器节流）；`file://` 与 http 两种形态数值逐位一致。
+- **快照数据内嵌**（deflate+base64）：6 指数日线（2018 起 + 2015 危机补段）、股息率、中债国债收益率曲线 8 期限点（快照 2026-09-17），无风险利率三模式（曲线插值 / 自定义 / 固定口径 2%）。
+- 明暗双主题、桌面最小宽 1200px、红绿仅表达盈亏。
+
+## 目录结构
 
 ```
-运行时活跃代码  = src/legacy/   (UI + 算法)
-                + src/workers/  (Worker Pool 多线程并行)
-
-设计备份        = src/core/     (算法层，与 legacy 数值等价)
-                + src/store/    (pub-sub 状态层)
-                + src/canvas/   (Canvas 绘图原语)
-                + src/utils/    (工具层，部分活跃)
+├── index.html            # 在线部署页 = snowball-v7/dist 构建产物（双击可跑）
+├── snowball-v7/          # 完整项目：源码 / 测试 / golden 基准 / 设计与推导文档
+│   ├── src/core/         # 算法层（Sobol、定价、Greeks、查表、账本回测、压测）
+│   ├── src/workers/      # Worker 池与三级降级
+│   ├── test/             # 44 断言（单测 + golden 黄金回归）
+│   └── docs/             # 设计规格 / 回测口径推导 / 账本口径推导 / 截图
+└── dist/index.html       # 同根 index.html（保留旧路径兼容）
 ```
 
-### 算法层
-
-- **Sobol 低差异序列 + Brownian Bridge**：替代伪随机数，收敛速度从 $O(1/\sqrt{N})$ 提升到 $O(1/N)$；756 维方向数 + Acklam 正态逆 CDF（误差 < 1.15e-9）；localStorage 缓存 2MB
-- **CRN 有限差分 Greeks**：所有 ±Δ 扰动共享同一组 Sobol normals，MC 噪声在差分中相关抵消；中心差分 Delta/Gamma/Vega/Rho/RhoQ，Theta 缩期限保 nSteps 严格 CRN
-- **Merton 跳跃扩散**：A 股标的跳空风险建模，显著提升敲入概率拟合精度（纯 GBM 系统性低估）
-- **CEV 局部波动率**：σ(S) = σ_ATM × (S₀/S)，捕捉波动率微笑
-- **Brent 方法反推票息**：8-12 次迭代收敛（vs 朴素二分 20-30 次）
-
-### Worker Pool
-
-- 池规模自适应 `navigator.hardwareConcurrency || 4`，支持 `?workers=N` URL 参数覆盖
-- 路径切分：主线程生成 Sobol normals 后按路径段切分，Transferable 零拷贝传递给 Worker
-- **三级降级链**：URL Worker → Blob Worker → 主线程串行；`file://` 协议自动降级
-- **合并优化**：Worker 失败时通过 `mergeFn` 合并 N 个 shards 为 1 个主线程调用，避免 N 倍串行开销
-
-## 快速开始
-
-### 环境要求
-
-- Node.js ≥ 18（推荐 20 LTS）
-- 现代浏览器（Chrome 100+ / Edge 100+ / Firefox 100+）
-
-### 开发与构建
+## 本地开发
 
 ```bash
-npm install
-npm run dev          # Vite dev server (http://127.0.0.1:5173)
-npm run build        # 产物: dist/index.html (< 450KB)
-npm run preview      # 预览生产构建
+cd snowball-v7
+npm install        # vite + vite-plugin-singlefile
+node test/run.mjs  # 44 断言（golden 逐位回归）
+npm run build      # 产出单文件 dist/index.html
 ```
-
-双击 `dist/index.html` 即可在 `file://` 协议下运行。
-
-### 测试
-
-```bash
-npm test             # = test:smoke + test:unit
-npm run test:smoke   # 12 项 smoke 测试
-npm run test:unit    # 单元测试 (pure Node.js)
-npm run test:perf    # 4 项性能基准 (pricing/greeks/surface/backtest)
-```
-
-## 仓库结构
-
-> 💡 **当前仓库**为构建产物简化版，仅包含部署所需的核心文件。完整开发目录见下方「完整项目结构」。
-
-```
-snowball/
-├── index.html          # 主页（单文件产物
-├── README.md         # 项目说明
-└── dist/             # 构建产物（GitHub Pages 部署目录
-    └── index.html
-```
-
-## 完整项目结构
-
-```
-snowball-v4/
-├── index.html              # HTML 骨架（含全部 CSS，无 JS 内联）
-├── vite.config.js          # vite-plugin-singlefile 配置
-├── package.json
-├── README.md / RULES.md     # 项目说明 / 规则（八荣八耻 + 不变量）
-├── docs/
-│   ├── v4-upgrade-plan.md   # 升级纲领（12 条不变量 + Phase 0-9 计划）
-│   └── v4-iteration-log.md  # 100 轮迭代记录
-├── hist_data/              # 6 个 A 股指数历史数据 (2021-01-04 ~ 2026-06-30, 1328 条/标的)
-│   ├── 000016.txt / 000300.txt / 000688.txt
-│   ├── 000852.txt / 000905.txt / 399006.txt
-│   └── *.csv               # 原始 4 列格式（备用）
-├── src/
-│   ├── main.js             # 入口：import './legacy/main.js'
-│   ├── legacy/             # 运行时活跃代码
-│   │   ├── main.js         # UI + 事件 + Worker Pool 调度
-│   │   ├── canvas.js       # 全部 Canvas 绘图函数
-│   │   ├── gbm.js          # 路径模拟 + 定价 + Greeks
-│   │   ├── sobol.js        # Sobol 序列 + 正态变换
-│   │   ├── backtest.js     # 回测引擎 + Greeks 查表
-│   │   ├── stress.js       # 压力测试情景
-│   │   └── data.js         # 6 指数预设模板
-│   ├── workers/            # Worker Pool (活跃)
-│   │   ├── pool.js         # WorkerPool: runShards/runByPath/降级链
-│   │   ├── workerLoader.js # Worker 工厂注入 + file:// 检测
-│   │   ├── pricing.worker.js   # 定价 Worker (computePricingPartial + merge)
-│   │   ├── greeks.worker.js     # Greeks Worker (9 扰动场景 CRN)
-│   │   ├── backtest.worker.js   # 回测 Worker (buildTable + LRU 缓存)
-│   │   └── stress.worker.js     # 压测 Worker
-│   ├── core/               # 算法层（设计备份，与 legacy 数值等价）
-│   │   ├── sobol.js / gbm.js / pricing.js / greeks.js
-│   │   ├── greeks-table.js / hedge.js / backtest.js / stress.js / data.js
-│   ├── store/              # 状态层（pub-sub，设计备份）
-│   ├── canvas/             # Canvas 原语（axes.js + theme.js）
-│   └── utils/              # 工具层（url/lru 被 workers 引用，其余备份）
-│       ├── brent.js / lru.js / url.js / format.js / dom.js / perf.js
-└── test/
-    ├── smoke.mjs           # 12 项 smoke 测试
-    ├── unit/               # 单元测试 (5 个文件)
-    └── perf/               # 4 项性能基准
-```
-
-## 核心算法
-
-### 雪球 Payoff 四象限
-
-| 路径类型 | 收益 | 触发条件 |
-|---|---|---|
-| 敲出 | 按持有月份折算票息 | 观察日 S ≥ 敲出价 |
-| 红利票息 | 到期拿满票息 | 未敲入未敲出到期 |
-| 敲入亏损 | 承担跌幅 | 曾敲入且到期亏损 |
-| 敲入赎回 | 拿回本金 | 曾敲入但到期回升 |
-
-计息基准：**ACT/365**（自然日，ty = 月数 / 12）
-
-### Greeks 业务口径（长江证券衍生品业务部标准）
-
-| Greek | 口径 |
-|---|---|
-| Delta / Gamma | 1% 标的变动影响（金额） |
-| Vega | 1pp 波动率变动影响（金额） |
-| Theta | 每日变动影响（金额） |
-| Rho / RhoQ | 1bp 利率 / 股息率变动影响（金额） |
-
-### CRN 有限差分公式
-
-```
-delta = (PV(s₀+ds) - PV(s₀-ds)) / (2·ds)     // 共享 normals，差分消去 MC 噪声
-gamma = (PV(s₀+ds) - 2·PV(s₀) + PV(s₀-ds)) / ds²
-vega  = (PV(vol+v) - PV(vol-v)) / (2·v) / 100
-theta = PV(tenor-12d) - PV(tenor)              // 保持 nSteps 不变，dt 自动变小
-rho   = (PV(rf+10bp) - PV(rf-10bp)) / (2·10bp) / 100
-rhoQ  = (PV(div+10bp) - PV(div-10bp)) / (2·10bp) / 100
-```
-
-MC 路径数下限 `nPaths ≥ 8192`（默认 8192，可选 16384 / 32768）。
-
-## 性能指标
-
-| 场景 | 目标 | 实测 |
-|---|---|---|
-| MC 定价 (8192 路径, 4 Worker) | < 1s | < 1s ✓ |
-| Greeks (CRN 9 扰动) | < 2s | < 2s ✓ |
-| Greeks 二维曲面 (10×6=60 点) | < 15s | < 15s ✓ |
-| 回测建表 (24×24=576 格) | < 30s | < 30s ✓ |
-| 压力测试 (25 情景) | ≈ 10×单次定价 | ✓ |
-
-构建产物体积：`dist/index.html < 450KB`（含全部 JS + CSS + 6 指数历史数据）。
-
-## 键盘快捷键
-
-| 键位 | 功能 |
-|---|---|
-| `1` / `2` / `3` | 切换到 定价 / 回测 / 压测 Tab |
-| `Ctrl+Enter` / `Cmd+Enter` | 提交当前 Tab 主表单 |
-| `t` | 切换深色 / 浅色主题 |
-| `d` | 启动 / 停止演示模式 |
-| `p` | 打开 / 关闭性能面板 |
-| `?` | 显示快捷键帮助 |
-| `Esc` | 关闭弹层 / 停止演示 |
-
-输入框内单字符快捷键自动禁用，避免误触。
-
-## 数据来源
-
-- 6 个 A 股指数历史数据：中证500 / 沪深300 / 中证1000 / 上证50 / 创业板指 / 科创50
-- 数据区间：2021-01-04 ~ 2026-06-30，1328 条/标的（日频收盘价）
-- 市场数据快照：同花顺 iFinD MCP（截至 2026-07-13）
-- 股息率：沪深300=2.91% / 中证500=1.24% / 中证1000=1.06% / 上证50=3.54% / 创业板指=0.84% / 科创50=0.16%
-
-## 工程约束
-
-- **单文件产出**：`npm run build` 产出 `dist/index.html`，`file://` 可运行，零外部依赖
-- **纯 Vanilla JS**：禁止 React / Vue / Svelte / TypeScript；禁止运行时依赖
-- **核心算法零改动**：`core/sobol.js`、`core/gbm.js`、`core/backtest.js`、`core/stress.js` 仅允许添加 JSDoc 注释
-- **CRN 一致性**：所有 Worker 接收同一组 Sobol normals 的不同路径段，合并顺序无关，结果与单线程完全一致（容差 < 1e-10）
-- **Greeks 双口径**：Delta/Gamma 显示为 1% 标的变动影响金额，Vega 为 1pp 波动率变动金额，Theta 为每日变动金额，Rho/RhoQ 为 1bp 变动金额
-- **MC 路径数下限**：所有定价与风险计算 `nPaths ≥ 8192`
-- **Vega 归因移除**：归因组件简化为 Gamma + Theta + 交易成本 + 离散损耗（30 日滚动 RV 做 Vega 归因是概念错误）
 
 ## License
 
-MIT License — 可自由使用、修改、分发，保留版权声明即可。
+MIT
