@@ -1,0 +1,18 @@
+{
+  "name": "snowball-v7",
+  "version": "7.1.0",
+  "private": true,
+  "type": "module",
+  "description": "雪球结构期权定价系统 v7 — 单 HTML 可运行，算法基线 snowball-v5 legacy",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node test/run.mjs",
+    "golden": "node tools/extract-golden/run.mjs"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0",
+    "vite-plugin-singlefile": "^2.0.0"
+  }
+}

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<title>雪球结构定价台 v7</title>
+<meta name="version" content="v7.1.0">
+</head>
+<body class="tab-pricing">
+<div id="loading" role="status" aria-live="polite"><div class="spinner"></div><div class="lt" id="loadingTitle">正在计算中…</div><div class="ls" id="loadingSub">蒙特卡洛模拟 + Greeks 求解，请稍候</div></div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<header class="topbar">
+  <div class="topbar-text">
+    <h1>雪球结构定价台 <span id="versionDisplay">v7.1.0</span></h1>
+    <div class="subtitle">Sobol 低差异序列 + CRN Greeks ｜ 数据来源：Wind 转载库 ｜ 定价快照：<span id="snapshotDate">—</span> ｜ 零外部依赖，双击即可运行</div>
+  </div>
+  <div class="topbar-actions">
+    <span class="exec-mode" id="execMode">执行模式：就绪</span>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="切换主题">
+      <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 109 9c0-.46-.04-.92-.1-1.36a5.39 5.39 0 01-4.4 2.26 5.4 5.4 0 01-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+      <span id="themeLabel">自动</span>
+    </button>
+  </div>
+</header>
+
+<nav class="tab-nav" id="tabNav" aria-label="功能模块切换">
+  <button class="tab-btn active" data-tab="pricing" type="button">定价分析</button>
+  <button class="tab-btn" data-tab="backtest" type="button">对冲回测</button>
+  <button class="tab-btn" data-tab="stress" type="button">压力测试</button>
+  <span class="param-summary" id="paramSummary"></span>
+  <button class="rail-toggle" id="railToggle" type="button" aria-expanded="true">收起参数 ▲</button>
+</nav>
+
+<div class="workspace">
+  <aside class="param-rail" id="paramRail">
+    <form id="form" autocomplete="off" novalidate>
+      <div class="mode-radio">
+        <label><input type="radio" name="pricingMode" value="pricing" checked> 估值定价</label>
+        <label><input type="radio" name="pricingMode" value="reverse"> 反推票息</label>
+      </div>
+
+      <div class="preset-bar">
+        <span class="preset-label">预设</span>
+        <div class="preset-btns">
+          <button class="preset-btn" data-preset="0" type="button">中证500标准</button>
+          <button class="preset-btn" data-preset="1" type="button">沪深300增强</button>
+          <button class="preset-btn" data-preset="2" type="button">中证1000进取</button>
+          <button class="preset-btn" data-preset="3" type="button">上证50稳健</button>
+          <button class="preset-btn" data-preset="4" type="button">创业板指高波</button>
+          <button class="preset-btn" data-preset="5" type="button">科创50极值</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="code">标的指数</label>
+        <select id="code">
+          <option value="000300.SH">沪深300</option>
+          <option value="000905.SH">中证500</option>
+          <option value="000852.SH" selected>中证1000</option>
+          <option value="000016.SH">上证50</option>
+          <option value="399006.SZ">创业板指</option>
+          <option value="000688.SH">科创50</option>
+        </select>
+      </div>
+      <div class="form-group"><label for="s0">期初价格 S₀</label><input type="number" id="s0" step="0.01" placeholder="选择标的后自动填入" inputmode="decimal"></div>
+
+      <div class="form-group">
+        <label for="koMode">敲出价模式</label>
+        <select id="koMode" title="固定模式:所有观察日用同一敲出价;递减模式:起始系数+每期递减">
+          <option value="fixed" selected>固定敲出价</option>
+          <option value="descending">递减敲出价</option>
+        </select>
+      </div>
+      <div class="form-group" id="koFixedGroup"><label for="ko">敲出价 (%)</label><input type="number" id="ko" step="0.01" placeholder="100" inputmode="decimal"></div>
+      <div class="form-group hidden" id="koDescStartGroup"><label for="koStart">起始敲出价 (%)</label><input type="number" id="koStart" step="0.01" placeholder="100" inputmode="decimal" title="第1个观察日的敲出价系数"></div>
+      <div class="form-group hidden" id="koDescStepGroup"><label for="koStep">每期递减 (%)</label><input type="number" id="koStep" step="0.01" placeholder="0.5" inputmode="decimal" title="每个观察日递减的系数"></div>
+      <div class="form-group"><label for="ki">敲入价 (%)</label><input type="number" id="ki" step="0.01" placeholder="75" inputmode="decimal"></div>
+
+      <div class="form-group">
+        <label for="couponMode">敲出票息模式</label>
+        <select id="couponMode" title="固定票息:所有观察日同一敲出票息率;分段票息:切换月前后票息不同">
+          <option value="fixed" selected>固定票息</option>
+          <option value="tiered">分段票息</option>
+        </select>
+      </div>
+      <div class="form-group" id="couponFixedGroup"><label for="coupon">敲出票息率 (%)</label><input type="number" id="coupon" step="0.01" placeholder="如 18" inputmode="decimal" title="敲出时按持有时间折算的年化票息率"></div>
+      <div class="form-group hidden" id="couponEarlyGroup"><label for="couponEarly">早期票息 (%)</label><input type="number" id="couponEarly" step="0.01" placeholder="如 15" inputmode="decimal"></div>
+      <div class="form-group hidden" id="couponSwitchGroup"><label for="couponSwitchMonth">切换月</label><input type="number" id="couponSwitchMonth" step="1" min="1" placeholder="如 23" inputmode="numeric"></div>
+      <div class="form-group hidden" id="couponLateGroup"><label for="couponLate">晚期票息 (%)</label><input type="number" id="couponLate" step="0.01" placeholder="如 4" inputmode="decimal"></div>
+      <div class="form-group"><label for="couponDiv">红利票息率 (%)</label><input type="number" id="couponDiv" step="0.01" placeholder="与敲出票息相同" inputmode="decimal" title="未敲入未敲出到期时获得的年化票息率"></div>
+
+      <div class="form-group"><label for="tenor">期限 (月)</label><input type="number" id="tenor" step="1" placeholder="24" min="3" max="36" inputmode="numeric"></div>
+      <div class="form-group"><label for="lockout">锁定期 (月)</label><input type="number" id="lockout" step="1" placeholder="3" min="0" max="35" inputmode="numeric"></div>
+      <div class="form-group"><label for="vol">波动率 (%)</label><input type="number" id="vol" step="0.01" placeholder="选择标的后自动填入" inputmode="decimal"></div>
+
+      <div class="form-group rf-group">
+        <label for="rf">无风险利率 (%)</label>
+        <div class="rf-row">
+          <input type="number" id="rf" step="0.01" value="2.0" inputmode="decimal">
+          <button type="button" class="mini-btn" id="rfFixed2Btn" title="一键回填 2.00% 固定无风险利率">固定口径 2%</button>
+          <button type="button" class="mini-btn" id="rfCurveBtn" style="display:none" title="恢复为中债国债收益率曲线插值">恢复曲线</button>
+        </div>
+        <div class="rf-footnote" id="rfNote"></div>
+      </div>
+
+      <div class="form-group"><label for="div">股息率 (%)</label><input type="number" id="div" step="0.01" placeholder="选择标的后自动填入" inputmode="decimal"></div>
+      <div class="form-group"><label for="margin">保证金率 (%)</label><input type="number" id="margin" step="1" value="100" min="10" max="100" inputmode="numeric" title="保证金率,杠杆倍数=1/保证金率"></div>
+      <div class="form-group"><label for="notional">名义本金 (万元)</label><input type="number" id="notional" step="any" value="1000" min="1" inputmode="decimal" title="名义本金,用于将理论价值换算为绝对金额"></div>
+
+      <div class="form-group hidden" id="targetPriceGroup"><label for="targetPrice">目标理论价值 (1=平价)</label><input type="number" id="targetPrice" value="1.00" step="0.01" min="0.5" max="2.0" inputmode="decimal" title="客户给定的发行价,反推可承诺票息率"></div>
+
+      <div class="adv-row collapsed" id="advSettings">
+        <div class="adv-toggle" id="advToggle" type="button">
+          <span class="arrow"></span>
+          <span>更多设置</span>
+          <span class="adv-tag">波动率模型 · 路径数</span>
+        </div>
+        <div class="adv-body">
+          <div class="form-group">
+            <label for="volModel">波动率模型</label>
+            <select id="volModel">
+              <option value="constant" selected>常数波动率 (GBM)</option>
+              <option value="cev">CEV 局部波动率 (β=0)</option>
+              <option value="jump">Merton 跳跃扩散</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="checkbox-label"><input type="checkbox" id="useBB" checked> Brownian Bridge 方差缩减</label>
+          </div>
+          <div class="form-group hidden" id="jumpLambdaGroup"><label for="jumpLambda">跳跃强度 λ</label><input type="number" id="jumpLambda" step="0.01" value="0.5" min="0" inputmode="decimal" title="每年平均跳跃次数"></div>
+          <div class="form-group hidden" id="jumpMeanGroup"><label for="jumpMean">跳跃均值 μ_J</label><input type="number" id="jumpMean" step="0.01" value="0.0" inputmode="decimal" title="对数跳跃幅度的均值（0=对称）"></div>
+          <div class="form-group hidden" id="jumpStdGroup"><label for="jumpStd">跳跃标准差 σ_J</label><input type="number" id="jumpStd" step="0.01" value="0.08" min="0" inputmode="decimal" title="对数跳跃幅度的标准差"></div>
+          <div class="form-group">
+            <label for="npaths">蒙特卡洛路径数</label>
+            <select id="npaths">
+              <option value="8192" selected>8192 (精确)</option>
+              <option value="16384">16384 (高精)</option>
+              <option value="32768">32768 (超精)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="err" id="err"></div>
+      <div class="param-actions">
+        <button type="submit" class="btn btn-primary" id="submitBtn">开始分析</button>
+      </div>
+    </form>
+  </aside>
+
+  <main class="main" id="main" tabindex="-1">
+    <section class="tab-result active" id="result-pricing">
+      <div class="result-placeholder">填写参数后点击「开始分析」</div>
+    </section>
+
+    <section class="tab-result" id="result-backtest">
+      <div class="bt-empty" id="btEmpty">
+        <div class="result-placeholder">切换到「定价分析」Tab 完成定价后，回到此 Tab 进行对冲回测</div>
+      </div>
+      <div class="bt-panel" id="btPanel" style="display:none">
+        <div class="bt-control-panel" id="btControlPanel">
+          <form id="btForm" onsubmit="return false">
+            <div class="bt-param-grid">
+              <div class="form-group"><label for="btCode">回测标的</label><select id="btCode"></select></div>
+              <div class="form-group"><label for="btStartDate">开始日期</label><input type="date" id="btStartDate"></div>
+              <div class="form-group"><label for="btEndDate">结束日期</label><input type="date" id="btEndDate"></div>
+              <div class="form-group">
+                <label for="btFreq">对冲频率</label>
+                <select id="btFreq" title="日内多次对冲使用GBM模拟子时段价位">
+                  <option value="daily" selected>每日1次</option>
+                  <option value="intraday2">日内2次</option>
+                  <option value="intraday4">日内4次</option>
+                  <option value="weekly">每周1次</option>
+                  <option value="monthly">每月1次</option>
+                </select>
+              </div>
+              <div class="form-group"><label for="btCost">交易成本 (单边bps)</label><input type="number" id="btCost" step="0.1" value="5" min="0" inputmode="decimal" title="股指期货单边交易成本，默认万0.5=5bps"></div>
+              <div class="form-group"><label for="btNotional">名义本金 (万元)</label><input type="number" id="btNotional" step="any" value="1000" min="1" inputmode="decimal"></div>
+              <div class="bt-info" id="btInfo">请先在「定价分析」Tab 完成定价，回测将自动同步雪球结构参数。</div>
+            </div>
+            <div class="bt-actions">
+              <button type="button" class="btn btn-primary" id="btSubmitBtn">开始回测</button>
+              <button type="button" class="btn btn-secondary" id="btMultiFreqBtn">多频率对比</button>
+              <button type="button" class="btn btn-tertiary" id="btCostScanBtn">成本扫描</button>
+              <button type="button" class="btn btn-quaternary" id="btRollingBtn">滚动窗口</button>
+              <span class="bt-info bt-quick-hint" id="btQuickHint"></span>
+            </div>
+          </form>
+        </div>
+        <div class="bt-summary" id="btSummary"></div>
+        <div class="bt-progress" id="btProgress" style="display:none">
+          <div class="bt-progress-bar"><div class="bt-progress-fill" id="btProgressFill"></div></div>
+          <div class="bt-progress-text" id="btProgressText">准备中…</div>
+        </div>
+        <div class="bt-charts" id="btCharts" style="display:none">
+          <div class="section">
+            <h3>累计盈亏曲线</h3>
+            <div class="chart-hint">主曲线为累计对冲盈亏（绿=盈利/红=亏损），虚线为 Gamma/Theta/成本的累计演变</div>
+            <canvas id="btCanvasPnl"></canvas>
+          </div>
+          <div class="section">
+            <h3>标的路径与 Delta 持仓</h3>
+            <div class="chart-hint">黑线=标的价格（左轴），紫线=Delta 持仓（右轴），红/绿水平线=敲入/敲出价</div>
+            <canvas id="btCanvasPath"></canvas>
+          </div>
+          <div class="section full-width">
+            <h3>盈亏归因分解</h3>
+            <div class="chart-hint">将总盈亏拆解为 Gamma/Theta/成本/未归因项四项，识别主导因素（未归因项含 Delta 方向性漂移；Vega 归因已移除，详见波动率参考）</div>
+            <canvas id="btCanvasDecomp"></canvas>
+          </div>
+          <div class="section full-width">
+            <h3>IV vs RV 波动率对比</h3>
+            <div class="chart-hint">滚动 20 日（实线）和 60 日（虚线）已实现波动率 vs 定价波动率（红色水平线）。红色散点 = RV&gt;IV，绿色散点 = RV&lt;IV</div>
+            <canvas id="btCanvasIVvsRV"></canvas>
+          </div>
+        </div>
+        <div class="bt-conclusion" id="btConclusion" style="display:none"></div>
+        <div class="bt-multifreq" id="btMultiFreq" style="display:none"></div>
+        <div class="bt-cost-scan" id="btCostScan" style="display:none">
+          <div class="section">
+            <h3>交易成本敏感性扫描</h3>
+            <div class="chart-hint">扫描单边成本 0/1/2/5/10/20/50 bps 下的对冲盈亏。红点为盈亏平衡点，交叉处为最大可承受成本</div>
+            <canvas id="btCanvasCostScan"></canvas>
+          </div>
+        </div>
+        <div class="bt-multifreq" id="btRollingResult" style="display:none"></div>
+      </div>
+    </section>
+
+    <section class="tab-result" id="result-stress">
+      <div class="stress-param-bar" id="stressParamsSummary">
+        <span class="muted">参数来自定价 Tab：</span><span id="stressParamText">未同步</span>
+      </div>
+      <div class="stress-run-bar">
+        <button id="runStressBtn" type="button" class="btn btn-primary">运行压力测试</button>
+        <span class="muted stress-run-hint">基于当前定价参数评估极端情景下的 PV 与 Greeks 变化</span>
+      </div>
+      <div id="stressEmpty" class="result-placeholder">点击上方「运行压力测试」按钮，基于当前定价参数评估极端情景下的风险敞口</div>
+      <div id="stressResults" style="display:none">
+        <div class="section full-width" id="stressSummarySection">
+          <h3>关键发现摘要</h3>
+          <div id="stressSummary" class="stress-summary-grid"></div>
+        </div>
+        <div class="section" id="stressVolSection">
+          <h3>波动率冲击情景</h3>
+          <div class="chart-hint">对定价波动率施加 ±5/±10/±20pp 冲击，重算 PV 与 Greeks</div>
+          <div id="stressVolTable"></div>
+        </div>
+        <div class="section" id="stressSpotSection">
+          <h3>标的价格跳跃情景</h3>
+          <div class="chart-hint">标的瞬时跳跃 ±5/±10/±20%，重算 PV 与 Greeks</div>
+          <div id="stressSpotTable"></div>
+        </div>
+        <div class="section" id="stressCrisisSection">
+          <h3>历史危机情景</h3>
+          <div class="chart-hint">用历史危机区间的实际波动率代入重算（2015股灾/2020新冠/2024量化风暴）</div>
+          <div id="stressCrisisTable"></div>
+        </div>
+        <div class="section full-width" id="stressMatrixSection">
+          <h3>组合情景矩阵（vol × spot）</h3>
+          <div class="chart-hint">5×5 网格，颜色映射 PV 相对基准的变化，红=亏损，绿=盈利</div>
+          <canvas id="stressMatrixCanvas" style="width:100%;height:360px;display:block"></canvas>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer class="footer-status">
+  <span class="version">雪球结构定价台 <span id="versionFooter">v7.1.0</span></span>
+  <span class="exec-mode-footer" id="execModeFooter"></span>
+  <span class="build-info" id="buildTimeDisplay"></span>
+</footer>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
